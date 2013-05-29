@@ -18,7 +18,7 @@
   var Validator = function ( options ) {
     /**
     * Error messages
-    *
+    * 
     * @property messages
     * @type {Object}
     */
@@ -38,8 +38,8 @@
       , notblank:       "This value should not be blank."
       , required:       "This value is required."
       , regexp:         "This value seems to be invalid."
-      , min:            "This value should be greater than or equal to %s."
-      , max:            "This value should be lower than or equal to %s."
+      , min:            "This value should be greater than %s."
+      , max:            "This value should be lower than %s."
       , range:          "This value should be between %s and %s."
       , minlength:      "This value is too short. It should have %s characters or more."
       , maxlength:      "This value is too long. It should have %s characters or less."
@@ -59,7 +59,7 @@
 
     /**
     * Validator list. Built-in validators functions
-    *
+    * 
     * @property validators
     * @type {Object}
     */
@@ -559,20 +559,18 @@
       }
 
       // alaways bind keyup event, for better UX when a field is invalid
-      var triggers = ( !this.options.trigger ? '' : this.options.trigger );
-
+      var triggers = ( !this.options.trigger ? '' : this.options.trigger )
+        + ( new RegExp( 'input', 'i' ).test( this.options.trigger ) ? '' : ' input' );
 
       // alaways bind change event, for better UX when a select is invalid
-      // if ( this.$element.is( 'select' ) ) {
-      //   triggers += new RegExp( 'change', 'i' ).test( triggers ) ? '' : ' change';
-      // }
+      if ( this.$element.is( 'select' ) ) {
+        triggers += new RegExp( 'change', 'i' ).test( triggers ) ? '' : ' change';
+      }
 
       // trim triggers to bind them correctly with .on()
       triggers = triggers.replace( /^\s+/g , '' ).replace( /\s+$/g , '' );
 
-      if (triggers != '') {
-        this.$element.on( ( triggers + ' ' ).split( ' ' ).join( '.' + this.type + ' ' ), false, $.proxy( this.eventValidation, this ) );
-      }
+      this.$element.on( ( triggers + ' ' ).split( ' ' ).join( '.' + this.type + ' ' ), false, $.proxy( this.eventValidation, this ) );
     }
 
     /**
@@ -603,7 +601,7 @@
     * @returns {String} val
     */
     , getVal: function () {
-      return this.$element.data('value') || this.$element.val();
+      return this.$element.val();
     }
 
     /**
@@ -617,7 +615,7 @@
       var val = this.getVal();
 
       // do nothing on keypress event if not explicitely passed as data-trigger and if field has not already been validated once
-      if ( event.type === 'keyup' && !/keyup/i.test( this.options.trigger ) && !this.validatedOnce ) {
+      if ( event.type === 'input' && !/keyup/i.test( this.options.trigger ) && !this.validatedOnce ) {
         return true;
       }
 
@@ -631,7 +629,7 @@
         return true;
       }
 
-      this.validate();
+      this.validate( true );
     }
 
     /**
@@ -685,9 +683,11 @@
         return this.valid;
       }
 
+      this.errorBubbling = 'undefined' !== typeof errorBubbling ? errorBubbling : true;
+
       valid = this.applyValidators();
 
-      if ( 'undefined' !== typeof errorBubbling ? errorBubbling : this.options.showErrors ) {
+      if ( this.errorBubbling ) {
         this.manageValidationResult();
       }
 
@@ -726,11 +726,9 @@
         if ( false === result ) {
           valid = false;
           this.constraints[ constraint ].valid = valid;
-          this.options.listeners.onFieldError( this.element, this.constraints, this );
         } else if ( true === result ) {
           this.constraints[ constraint ].valid = true;
           valid = false !== valid;
-          this.options.listeners.onFieldSuccess( this.element, this.constraints, this );
         }
       }
 
@@ -764,9 +762,11 @@
       if ( true === this.valid ) {
         this.removeErrors();
         this.errorClassHandler.removeClass( this.options.errorClass ).addClass( this.options.successClass );
+        this.options.listeners.onFieldSuccess( this.element, this.constraints, this );
         return true;
       } else if ( false === this.valid ) {
         this.errorClassHandler.removeClass( this.options.successClass ).addClass( this.options.errorClass );
+        this.options.listeners.onFieldError( this.element, this.constraints, this );
         return false;
       }
 
@@ -791,15 +791,9 @@
     * @param {String} constraintName Method Name
     */
     , removeError: function ( constraintName ) {
-      var liError = this.ulError + ' .' + constraintName
-        , that = this;
+      var liError = this.ulError + ' .' + constraintName;
 
-      this.options.animate ? $( liError ).fadeOut( this.options.animateDuration, function () {
-        $( this ).remove();
-
-        if ( that.ulError && $( that.ulError ).children().length === 0 ) {
-          that.removeErrors();
-        } } ) : $( liError ).remove();
+      this.options.animate ? $( liError ).fadeOut( this.options.animateDuration, function () { $( this ).remove() } ) : $( liError ).remove();
 
       // remove li error, and ul error if no more li inside
       if ( this.ulError && $( this.ulError ).children().length === 0 ) {
@@ -817,7 +811,7 @@
       for ( var constraint in error ) {
         var liTemplate = $( this.options.errors.errorElem ).addClass( constraint );
 
-        $( this.ulError ).append( this.options.animate ? $( liTemplate ).html( error[ constraint ] ).hide().fadeIn( this.options.animateDuration ) : $( liTemplate ).html( error[ constraint ] ) );
+        $( this.ulError ).append( this.options.animate ? $( liTemplate ).text( error[ constraint ] ).hide().fadeIn( this.options.animateDuration ) : $( liTemplate ).text( error[ constraint ] ) );
       }
     }
 
@@ -863,11 +857,9 @@
       // TODO: refacto properly
       // if required constraint but field is not null, do not display
       if ( 'required' === constraint.name && null !== this.getVal() && this.getVal().length > 0 ) {
-        this.removeError('required')
         return;
       // if empty required field and non required constraint fails, do not display
       } else if ( this.isRequired && 'required' !== constraint.name && ( null === this.getVal() || 0 === this.getVal().length ) ) {
-        this.removeError('type')
         return;
       }
 
@@ -892,7 +884,7 @@
     * @method manageErrorContainer
     */
     , manageErrorContainer: function () {
-      var errorContainer = this.options.errorContainer || this.options.errors.container( this.element, this.isRadioOrCheckbox )
+      var errorContainer = this.options.errorContainer || this.options.errors.container( this.element, this.isRadioOrCheckbox )
         , ulTemplate = this.options.animate ? this.ulTemplate.show() : this.ulTemplate;
 
       if ( 'undefined' !== typeof errorContainer ) {
@@ -1040,8 +1032,8 @@
 
       // alaways bind keyup event, for better UX when a field is invalid
       var self = this
-        , triggers = ( !this.options.trigger ? '' : this.options.trigger );
-        // + ( new RegExp( 'change', 'i' ).test( this.options.trigger ) ? '' : ' change' );
+        , triggers = ( !this.options.trigger ? '' : this.options.trigger )
+        + ( new RegExp( 'change', 'i' ).test( this.options.trigger ) ? '' : ' change' );
 
       // trim triggers to bind them correctly with .on()
       triggers = triggers.replace( /^\s+/g , '' ).replace( /\s+$/g ,'' );
@@ -1204,7 +1196,7 @@
 
       this.$element.off( '.' + this.type ).removeData( this.type );
     }
-
+    
     /**
     * reset Parsley binded on the form and its fields
     *
@@ -1280,7 +1272,7 @@
 
   /**
   * Parsley plugin configuration
-  *
+  * 
   * @property $.fn.parsley.defaults
   * @type {Object}
   */
@@ -1297,7 +1289,6 @@
     , errorClass: 'parsley-error'               // Class name on each invalid input
     , errorMessage: false                       // Customize an unique error message showed if one constraint fails
     , validators: {}                            // Add your custom validators functions
-    , showErrors: true                          // Set to false if you don't want Parsley to display error messages
     , messages: {}                              // Add your own error messages here
 
     //some quite advanced configuration here..
