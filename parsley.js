@@ -69,7 +69,7 @@
       }
 
       , notblank: function ( val ) {
-        return null !== val && '' !== val.replace( /^\s+/g, '' ).replace( /\s+$/g, '' );
+        return 'string' === typeof val && '' !== val.replace( /^\s+/g, '' ).replace( /\s+$/g, '' );
       }
 
       // Works on all inputs. val is object for checkboxes
@@ -386,7 +386,7 @@
     */
     , bindHtml5Constraints: function () {
       // add html5 required support + class required support
-      if ( this.$element.hasClass( 'required' ) || this.$element.attr( 'required' ) ) {
+      if ( this.$element.hasClass( 'required' ) || this.$element.prop( 'required' ) ) {
         this.options.required = true;
       }
 
@@ -738,7 +738,7 @@
     /**
     * Fired when all validators have be executed
     * Returns true or false if field is valid or not
-    * Display errors messages below faild fields
+    * Display errors messages below failed fields
     * Adds parsley-success or parsley-error class on fields
     *
     * @method manageValidationResult
@@ -1256,7 +1256,7 @@
     }
 
     // if a form elem is given, bind all its input children
-    if ( $( this ).is( 'form' ) ) {
+    if ( $( this ).is( 'form' ) || true === $( this ).data( 'bind' ) ) {
       newInstance = bind ( $( this ), 'parsleyForm' );
 
     // if it is a Parsley supported single element, bind it too, except inputs type hidden
@@ -1279,7 +1279,7 @@
   $.fn.parsley.defaults = {
     // basic data-api overridable properties here..
     inputs: 'input, textarea, select'           // Default supported inputs.
-    , excluded: 'input[type=hidden], :disabled' // Do not validate input[type=hidden] & :disabled.
+    , excluded: 'input[type=hidden], input[type=file], :disabled' // Do not validate input[type=hidden] & :disabled.
     , trigger: false                            // $.Event() that will trigger validation. eg: keyup, change..
     , animate: true                             // fade in / fade out error messages
     , animateDuration: 300                      // fadein/fadout ms time
